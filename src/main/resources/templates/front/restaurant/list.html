@@ -3,13 +3,62 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{front/layouts/main}">
 
-
+<!-- ✅ 카카오맵 SDK 로딩 -->
+<th:block layout:fragment="addCommonScript">
+    <script type="text/javascript"
+            src="//dapi.kakao.com/v2/maps/sdk.js?appkey=9f7e178dfd405fc30db25f78d7d5263e"></script>
+</th:block>
 
 <main layout:fragment="content">
-    <h1 th:text="${pageTitle}"></h1>
+    <h1 th:text="${pageTitle}">오늘의 식당</h1>
 
+    <!-- 지도 영역 -->
     <div id="map"></div>
 
+    <!-- 카테고리 필터 UI -->
+    <div id="categoryFilter">
+        <div class="select-box">
+            <select id="categorySelect" multiple size="6">
+                <option value="한식">한식</option>
+                <option value="경양식">경양식</option>
+                <option value="까페">까페</option>
+                <option value="분식">분식</option>
+                <option value="횟집">횟집</option>
+                <option value="호프/통닭">호프/통닭</option>
+                <option value="기타">기타</option>
+                <option value="중국식">중국식</option>
+                <option value="일식">일식</option>
+                <option value="식육(숯불구이)">식육(숯불구이)</option>
+                <option value="뷔페식">뷔페식</option>
+                <option value="김밥(도시락)">김밥(도시락)</option>
+                <option value="정종/대포집/소주방">정종/대포집/소주방</option>
+                <option value="외국음식전문점(인도,태국등)">외국음식전문점(인도,태국등)</option>
+                <option value="냉면집">냉면집</option>
+                <option value="탕류(보신용)">탕류(보신용)</option>
+                <option value="패밀리레스트랑">패밀리레스트랑</option>
+                <option value="감성주점">감성주점</option>
+                <option value="출장조리">출장조리</option>
+                <option value="라이브카페">라이브카페</option>
+                <option value="키즈카페">키즈카페</option>
+                <option value="통닭(치킨)">통닭(치킨)</option>
+                <option value="복어취급">복어취급</option>
+                <option value="패스트푸드">패스트푸드</option>
+            </select>
+            <button id="applyFilterBtn">확인</button>
+        </div>
+
+        <!--  추천 식당 정보 영역 -->
+        <div id="recommendationBox">
+            <h3>추천 식당</h3>
+            <p id="recommendationName">이름: -</p>
+            <p id="recommendationAddress">주소: -</p>
+        </div>
+    </div>
+
+    <!-- JSON 데이터 삽입 -->
     <script type="application/json" th:utext="${json}"></script>
+
+    <!-- map.js 연결 -->
+    <script th:src="@{/common/js/map.js}"></script>
 </main>
 </html>
