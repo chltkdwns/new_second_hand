@@ -50,6 +50,7 @@ public class FileDeleteService {
 
         // DB 기록을 삭제
         repository.delete(item);
+        repository.flush();
 
         return item;
     }

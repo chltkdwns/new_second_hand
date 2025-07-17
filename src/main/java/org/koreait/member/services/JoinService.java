@@ -40,7 +40,7 @@ public class JoinService {
         member.setMobile(mobile);
         member.setCredentialChangedAt(LocalDateTime.now());
 
-        repository.save(member);
+        repository.saveAndFlush(member);
 
     }
 }

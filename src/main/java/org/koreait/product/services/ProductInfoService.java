@@ -1,5 +1,7 @@
 package org.koreait.product.services;
 
+import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.StringExpression;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.koreait.admin.product.controllers.RequestProduct;
@@ -9,6 +11,7 @@ import org.koreait.global.search.Pagination;
 import org.koreait.product.constants.ProductStatus;
 import org.koreait.product.controllers.ProductSearch;
 import org.koreait.product.entities.Product;
+import org.koreait.product.entities.QProduct;
 import org.koreait.product.exceptions.ProductNotFoundException;
 import org.koreait.product.repositories.ProductRepository;
 import org.modelmapper.ModelMapper;
@@ -33,7 +36,6 @@ public class ProductInfoService {
     private final ModelMapper modelMapper;
     private final ProductRepository repository;
     private final FileInfoService fileInfoService;
-    private final JdbcTemplate jdbcTemplate;
     private final HttpServletRequest request;
 
     public Product get(Long seq) {
@@ -53,7 +55,6 @@ public class ProductInfoService {
         int page = Math.max(search.getPage(), 1);
         int limit = search.getLimit();
         limit = limit < 1 ? 20 : limit;
-        int offset = (page - 1) * limit;
 
         String sopt = search.getSopt();
         String skey = search.getSkey();
@@ -61,88 +62,137 @@ public class ProductInfoService {
         LocalDate sDate = search.getSDate();
         LocalDate eDate = search.getEDate();
 
-        String sql = "SELECT * FROM PRODUCT";
-        String countSql = "SELECT COUNT(*) FROM PRODUCT";
+        QProduct product = QProduct.product;
 
-        List<Object> params = new ArrayList<>();
-
-        StringBuffer sb1 = new StringBuffer(5000);
-        StringBuffer sb2 = new StringBuffer(5000);
-        sb1.append(sql);
-        sb2.append(countSql);
-
-        List<String> arrWhere = new ArrayList<>();
-        arrWhere.add("deletedAt IS NULL");
+        BooleanBuilder andBuilder = new BooleanBuilder();
+        andBuilder.and(product.deletedAt.isNotNull());
 
         /* 상품 등록일자 검색 처리 S */
-        if (sDate != null) {
-            arrWhere.add("createdAt >= ?");
-            params.add(sDate.atStartOfDay());
+        if(sDate != null){
+            andBuilder.and(product.createdAt.goe(sDate.atStartOfDay()));
         }
 
-        if (eDate != null) {
-            arrWhere.add("createdAt <= ?");
-            params.add(eDate.atTime(23, 59, 59));
+        if(eDate != null){
+            andBuilder.and(product.createdAt.loe(eDate.atTime(23, 59, 59)));
         }
-
         /* 상품 등록일자 검색 처리 E */
 
         /* 키워드 검색 처리 S */
         sopt = StringUtils.hasText(sopt) ? sopt.toUpperCase() : "ALL";
-        if (StringUtils.hasText(skey)) {
+        if(StringUtils.hasText(skey)){
             skey = skey.trim();
-
-            // 상품명으로 검색
-            String conds = null;
-            if (sopt.equals("NAME")) {
-                conds = "name LIKE ?";
-            } else if (sopt.equals("DESCRIPTION")) { // 상세 설명
-                conds = "description LIKE ?";
-            } else { // 통합검색
-                conds = "CONCAT(name, description) LIKE ?";
+            StringExpression fields = null;
+            if(sopt.equals("NAME")){
+                fields = product.name;
+            } else if (sopt.equals("DESCRIPTION")) {
+                fields = product.description;
+            }else {
+                fields = product.name.concat(product.description);
             }
-            arrWhere.add(conds);
-            params.add("%" + skey + "%");
+
+            andBuilder.and(fields.contains(skey));
         }
         /* 키워드 검색 처리 E */
 
-        // 판매가, 소비자가 검색 처리 S
+        /* 판매 가격, 소비자 가격 검색 처리 S */
         Integer sPrice = search.getSPrice();
         Integer ePrice = search.getEPrice();
-        if (sPrice != null) {
-            arrWhere.add("(salePrice >= ? OR consumerPrice >= ?)");
-            params.add(sPrice);
+        if(sPrice != null) {
+            BooleanBuilder orBuilder = new BooleanBuilder();
+            andBuilder.and(orBuilder.or(product.salePrice.goe(sPrice)))
+                    .or(product.consumerPrice.goe(sPrice));
         }
 
-        if (ePrice != null) {
-            arrWhere.add("(salePrice <= ? OR consumerPrice <= ?)");
-            params.add(ePrice);
+        if(ePrice != null) {
+            BooleanBuilder orBuilder = new BooleanBuilder();
+            andBuilder.and(orBuilder.or(product.salePrice.loe(ePrice)))
+                    .or(product.consumerPrice.loe(ePrice));
         }
-        // 판매가, 소비자가 검색 처리 E
-
-        if (!arrWhere.isEmpty()) {
-            String where = " WHERE " + arrWhere.stream().collect(Collectors.joining(" AND "));
-            sb1.append(where);
-            sb2.append(where);
-        }
-
-        /* 페이징 처리 S */
+        /* 판매 가격, 소비자 가격 검색 처리 S */
 
 
-
-        // 전체 갯수
-        int total = jdbcTemplate.queryForObject(sb2.toString(), int.class, params.toArray());
-
-        sb1.append(" ORDER BY createdAt DESC LIMIT ?, ?");
-        params.add(offset);
-        params.add(limit);
-
-        // 상품 목록 조회
-        List<Product> items = jdbcTemplate.query(sb1.toString(), this::mapper, params.toArray());
-        items.forEach(this::addInfo); // 추가 정보 처리
-
-        Pagination pagination = new Pagination(page, total, 10, limit, request);
-        /* 페이징 처리 E */
+//        String sql = "SELECT * FROM PRODUCT";
+//        String countSql = "SELECT COUNT(*) FROM PRODUCT";
+//
+//        List<Object> params = new ArrayList<>();
+//
+//        StringBuffer sb1 = new StringBuffer(5000);
+//        StringBuffer sb2 = new StringBuffer(5000);
+//        sb1.append(sql);
+//        sb2.append(countSql);
+//
+//        List<String> arrWhere = new ArrayList<>();
+//        arrWhere.add("deletedAt IS NULL");
+//
+//        /* 상품 등록일자 검색 처리 S */
+//        if (sDate != null) {
+//            arrWhere.add("createdAt >= ?");
+//            params.add(sDate.atStartOfDay());
+//        }
+//
+//        if (eDate != null) {
+//            arrWhere.add("createdAt <= ?");
+//            params.add(eDate.atTime(23, 59, 59));
+//        }
+//
+//        /* 상품 등록일자 검색 처리 E */
+//
+//        /* 키워드 검색 처리 S */
+//        sopt = StringUtils.hasText(sopt) ? sopt.toUpperCase() : "ALL";
+//        if (StringUtils.hasText(skey)) {
+//            skey = skey.trim();
+//
+//            // 상품명으로 검색
+//            String conds = null;
+//            if (sopt.equals("NAME")) {
+//                conds = "name LIKE ?";
+//            } else if (sopt.equals("DESCRIPTION")) { // 상세 설명
+//                conds = "description LIKE ?";
+//            } else { // 통합검색
+//                conds = "CONCAT(name, description) LIKE ?";
+//            }
+//            arrWhere.add(conds);
+//            params.add("%" + skey + "%");
+//        }
+//        /* 키워드 검색 처리 E */
+//
+//        // 판매가, 소비자가 검색 처리 S
+//        Integer sPrice = search.getSPrice();
+//        Integer ePrice = search.getEPrice();
+//        if (sPrice != null) {
+//            arrWhere.add("(salePrice >= ? OR consumerPrice >= ?)");
+//            params.add(sPrice);
+//        }
+//
+//        if (ePrice != null) {
+//            arrWhere.add("(salePrice <= ? OR consumerPrice <= ?)");
+//            params.add(ePrice);
+//        }
+//        // 판매가, 소비자가 검색 처리 E
+//
+//        if (!arrWhere.isEmpty()) {
+//            String where = " WHERE " + arrWhere.stream().collect(Collectors.joining(" AND "));
+//            sb1.append(where);
+//            sb2.append(where);
+//        }
+//
+//        /* 페이징 처리 S */
+//
+//
+//
+//        // 전체 갯수
+//        int total = jdbcTemplate.queryForObject(sb2.toString(), int.class, params.toArray());
+//
+//        sb1.append(" ORDER BY createdAt DESC LIMIT ?, ?");
+//        params.add(offset);
+//        params.add(limit);
+//
+//        // 상품 목록 조회
+//        List<Product> items = jdbcTemplate.query(sb1.toString(), this::mapper, params.toArray());
+//        items.forEach(this::addInfo); // 추가 정보 처리
+//
+//        Pagination pagination = new Pagination(page, total, 10, limit, request);
+//        /* 페이징 처리 E */
 
         return new ListData<>(items, pagination);
     }
