@@ -1,12 +1,8 @@
 package org.koreait.trend.entities;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Lob;
+import jakarta.persistence.*;
 import lombok.Data;
 import org.koreait.global.entities.BaseEntity;
-import org.springframework.data.annotation.Id;
 
 @Data
 @Entity

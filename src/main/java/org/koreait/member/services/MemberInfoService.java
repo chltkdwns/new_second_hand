@@ -95,7 +95,7 @@ public class MemberInfoService implements UserDetailsService {
 
         // 권한 조건 검색 S
         List<Authority> authorities = search.getAuthority();
-        if(!authorities.isEmpty()){
+        if(authorities != null && !authorities.isEmpty()){
             andBuilder.and(member.authority.in(authorities));
         }
         // 권한 조건 검색 E

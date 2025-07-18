@@ -36,10 +36,10 @@ public class DiabetesSurveyService {
         item.setDiabetes(diabetes);
         item.setBmi(bmi);
         if (memberUtil.isLogin()) {
-            item.setMemberSeq(memberUtil.getMember().getSeq());
+            item.setMember(member);
         }
 
-        repository.save(item);
+        repository.saveAndFlush(item);
 
         return repository.findById(item.getSeq()).orElse(null);
     }
